@@ -1,0 +1,32 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.config import get_settings
+from app.modules.auth.routes import router as auth_router
+from app.modules.notes.routes import router as notes_router
+from app.modules.reports.routes import router as reports_router
+from app.modules.targets.routes import router as targets_router
+from app.modules.tools.routes import router as tools_router
+
+settings = get_settings()
+
+app = FastAPI(title="HackWay API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.frontend_origin],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth_router, prefix="/api")
+app.include_router(targets_router, prefix="/api")
+app.include_router(notes_router, prefix="/api")
+app.include_router(tools_router, prefix="/api")
+app.include_router(reports_router, prefix="/api")
+
+
+@app.get("/api/health")
+async def health() -> dict:
+    return {"status": "ok"}
