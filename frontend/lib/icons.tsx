@@ -23,6 +23,12 @@ const PATHS: Record<string, string> = {
   plus: "M12 5v14M5 12h14",
   arrowLeft: "M19 12H5M12 19l-7-7 7-7",
   chevron: "M9 18l6-6-6-6",
+  chevronDown: "M6 9l6 6 6-6",
+  menu: "M3 6h18M3 12h18M3 18h18",
+  x: "M18 6L6 18M6 6l12 12",
+  copy: "M9 9h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11c0-1.1.9-2 2-2zM5 15H4a2 2 0 0 1-2-2V3c0-1.1.9-2 2-2h10a2 2 0 0 1 2 2v1",
+  layers: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
+  sliders: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6",
 };
 
 export function Icon({
@@ -30,11 +36,14 @@ export function Icon({
   size = 18,
   color = "currentColor",
   className,
+  title,
 }: {
   name: string;
   size?: number;
   color?: string;
   className?: string;
+  /** Passe apenas quando o ícone carrega significado sozinho; caso contrário fica decorativo. */
+  title?: string;
 }) {
   return (
     <svg
@@ -47,6 +56,10 @@ export function Icon({
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
+      role={title ? "img" : undefined}
+      aria-hidden={title ? undefined : true}
+      aria-label={title}
+      focusable="false"
       style={{ display: "inline-block", verticalAlign: "middle", flexShrink: 0 }}
     >
       <path d={PATHS[name] || ""} />

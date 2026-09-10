@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { Icon } from "@/lib/icons";
@@ -9,6 +10,8 @@ import { Button } from "@/components/ui/Button";
 import { typeVisual } from "@/lib/constants";
 import { api, ApiError } from "@/lib/api";
 import type { Meta, Target, ToolGroup } from "@/lib/types";
+
+const STEPS = ["01 INFORMAÇÕES", "02 ESCOPO"];
 
 export default function NewTargetPage() {
   const router = useRouter();
@@ -32,14 +35,17 @@ export default function NewTargetPage() {
 
   useEffect(() => {
     if (!type || !meta) return;
-    Promise.all(meta.phases.map((_, i) => api.get<ToolGroup[]>(`/tools/${type}/${i}`).catch(() => [])))
-      .then((groups) => setToolCounts(groups.map((g) => g.reduce((s, grp) => s + grp.commands.length, 0))));
+    Promise.all(meta.phases.map((_, i) => api.get<ToolGroup[]>(`/tools/${type}/${i}`).catch(() => []))).then((groups) =>
+      setToolCounts(groups.map((g) => g.reduce((s, grp) => s + grp.commands.length, 0)))
+    );
   }, [type, meta]);
 
   if (!meta) {
     return (
       <AppShell>
-        <div className="flex-1 flex items-center justify-center text-[#334155] text-sm">Carregando...</div>
+        <div role="status" aria-live="polite" className="flex flex-1 items-center justify-center px-4 text-sm text-[#334155]">
+          Carregando...
+        </div>
       </AppShell>
     );
   }
@@ -65,133 +71,188 @@ export default function NewTargetPage() {
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (step === 0) setStep(1);
+    else handleCreate();
+  }
+
   return (
     <AppShell>
-      <div className="flex-1 overflow-y-auto px-8 py-7">
-        <div className="max-w-[600px] mx-auto animate-fadeIn">
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="inline-flex items-center gap-1.5 text-[13px] text-subtle mb-5 py-1 hover:text-text"
+      <div className="page-gutter flex-1 overflow-y-auto pt-5 sm:pt-7">
+        <div className="mx-auto max-w-[600px] animate-fadeIn">
+          <Link
+            href="/dashboard"
+            className="focus-ring -ml-1 mb-4 inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-1 text-[13px] text-subtle hover:text-text sm:mb-5"
           >
             <Icon name="arrowLeft" size={14} /> Voltar
-          </button>
-          <h1 className="m-0 mb-1 text-[22px] font-bold text-white">Novo Alvo</h1>
-          <p className="m-0 mb-7 text-[13px] text-muted">Configure o alvo e defina o escopo do pentest</p>
+          </Link>
 
-          <div className="flex gap-2 mb-8">
-            {["01 INFORMAÇÕES", "02 ESCOPO"].map((label, i) => (
-              <div key={label} className="flex-1 flex flex-col gap-1.5">
-                <div className="h-[3px] rounded-sm transition-all" style={{ background: step >= i ? "#7C5CFF" : "#1E293B" }} />
-                <span className="text-[10px] font-mono tracking-wide" style={{ color: step === i ? "#7C5CFF" : "#475569" }}>
+          <h1 className="m-0 mb-1 text-xl font-bold text-white sm:text-[22px]">Novo Alvo</h1>
+          <p className="m-0 mb-6 text-[13px] text-muted sm:mb-7">Configure o alvo e defina o escopo do pentest</p>
+
+          {/* Indicador de progresso do formulário */}
+          <ol aria-label="Etapas do cadastro" className="m-0 mb-7 flex list-none gap-2 p-0 sm:mb-8">
+            {STEPS.map((label, i) => (
+              <li key={label} className="flex flex-1 flex-col gap-1.5" aria-current={step === i ? "step" : undefined}>
+                <span
+                  aria-hidden="true"
+                  className="h-[3px] rounded-sm transition-all"
+                  style={{ background: step >= i ? "#7C5CFF" : "#1E293B" }}
+                />
+                <span
+                  className="font-mono text-[10px] tracking-wide"
+                  style={{ color: step === i ? "#7C5CFF" : "#475569" }}
+                >
                   {label}
                 </span>
-              </div>
+              </li>
             ))}
-          </div>
+          </ol>
 
           {error && (
-            <div className="mb-4 text-[13px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+            <p
+              role="alert"
+              className="m-0 mb-4 rounded-lg border border-danger/20 bg-danger/10 px-3 py-2 text-[13px] text-danger"
+            >
               {error}
-            </div>
+            </p>
           )}
 
-          {step === 0 ? (
-            <div className="flex flex-col gap-5">
-              <Input label="NOME DO ALVO" value={name} onChange={(e) => setName(e.target.value)} placeholder="ex: Servidor Produção Corp" />
-              <div>
-                <label className="text-[11px] font-semibold text-subtle mb-2 block tracking-wide">TIPO DE ALVO</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {meta.target_types.map((tt) => {
-                    const active = type === tt.key;
-                    const visual = typeVisual(tt.key);
-                    return (
-                      <button
-                        key={tt.key}
-                        onClick={() => setType(tt.key)}
-                        className="flex flex-col items-center gap-1.5 px-2 py-3.5 rounded-xl transition-all border"
-                        style={{
-                          background: active ? "#7C5CFF12" : "#0A0E1A",
-                          borderColor: active ? "#7C5CFF" : "#151B2E",
-                        }}
-                      >
-                        <Icon name={visual.icon} size={24} color={active ? visual.color : "#64748B"} />
-                        <span className="text-xs font-medium text-center" style={{ color: active ? "#fff" : "#94A3B8" }}>
-                          {tt.label}
-                        </span>
-                      </button>
-                    );
-                  })}
+          <form onSubmit={handleSubmit} noValidate>
+            {step === 0 ? (
+              <div className="flex flex-col gap-5">
+                <Input
+                  label="NOME DO ALVO"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="ex: Servidor Produção Corp"
+                  autoComplete="off"
+                />
+
+                <fieldset className="m-0 min-w-0 border-0 p-0">
+                  <legend className="mb-2 block text-[11px] font-semibold tracking-wide text-subtle">
+                    TIPO DE ALVO
+                  </legend>
+                  {/* 2 colunas no celular, 3 a partir de 420px — 3 colunas em 320px espremem o rótulo */}
+                  <div className="grid grid-cols-2 gap-2 xs:grid-cols-3">
+                    {meta.target_types.map((tt) => {
+                      const active = type === tt.key;
+                      const visual = typeVisual(tt.key);
+                      return (
+                        <button
+                          key={tt.key}
+                          type="button"
+                          onClick={() => setType(tt.key)}
+                          aria-pressed={active}
+                          className="focus-ring flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-3.5 transition-all"
+                          style={{
+                            background: active ? "#7C5CFF12" : "#0A0E1A",
+                            borderColor: active ? "#7C5CFF" : "#151B2E",
+                          }}
+                        >
+                          <Icon name={visual.icon} size={24} color={active ? visual.color : "#64748B"} />
+                          <span
+                            className="text-center text-xs font-medium leading-tight"
+                            style={{ color: active ? "#fff" : "#94A3B8" }}
+                          >
+                            {tt.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
+                <Input
+                  label="ENDEREÇO / IDENTIFICADOR"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder={selectedType?.placeholder || "IP, domínio, nome..."}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                />
+
+                <Textarea
+                  label="DESCRIÇÃO / REGRAS DE ENGAJAMENTO"
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Contexto, escopo permitido, horários..."
+                />
+
+                {/* Ações: empilhadas e em largura total no celular, alinhadas à direita em sm+ */}
+                <div className="mt-1 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+                  <Button variant="ghost" onClick={() => router.push("/dashboard")} className="sm:w-auto">
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={!type || !address}>
+                    Próximo →
+                  </Button>
                 </div>
               </div>
-              <Input
-                label="ENDEREÇO / IDENTIFICADOR"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder={selectedType?.placeholder || "IP, domínio, nome..."}
-              />
-              <Textarea
-                label="DESCRIÇÃO / REGRAS DE ENGAJAMENTO"
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Contexto, escopo permitido, horários..."
-              />
-              <div className="flex justify-end gap-2.5 mt-1">
-                <Button variant="ghost" onClick={() => router.push("/dashboard")}>
-                  Cancelar
-                </Button>
-                <Button disabled={!type || !address} onClick={() => setStep(1)}>
-                  Próximo →
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2.5">
-              <p className="m-0 mb-2 text-[13px] text-subtle">
-                Etapas no escopo — ferramentas serão adaptadas ao tipo{" "}
-                <span className="text-accent font-semibold">{selectedType?.label}</span>:
-              </p>
-              {meta.phases.map((ph, i) => {
-                const checked = scopePhases[i];
-                const count = toolCounts[i];
-                return (
-                  <button
-                    key={ph.num}
-                    onClick={() =>
-                      setScopePhases((prev) => prev.map((v, idx) => (idx === i ? !v : v)))
-                    }
-                    className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-all border"
-                    style={{ background: checked ? "#7C5CFF08" : "#0A0E1A", borderColor: checked ? "#7C5CFF33" : "#151B2E" }}
-                  >
-                    <div
-                      className="w-[22px] h-[22px] rounded-[7px] border-2 flex items-center justify-center flex-shrink-0"
-                      style={{ borderColor: checked ? "#7C5CFF" : "#334155", background: checked ? "#7C5CFF" : "transparent" }}
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                <p className="m-0 mb-2 text-[13px] leading-relaxed text-subtle">
+                  Etapas no escopo — ferramentas serão adaptadas ao tipo{" "}
+                  <span className="font-semibold text-accent">{selectedType?.label}</span>:
+                </p>
+
+                {meta.phases.map((ph, i) => {
+                  const checked = scopePhases[i];
+                  const count = toolCounts[i];
+                  return (
+                    <button
+                      key={ph.num}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={checked}
+                      onClick={() => setScopePhases((prev) => prev.map((v, idx) => (idx === i ? !v : v)))}
+                      className="focus-ring flex items-start gap-3 rounded-xl border px-3.5 py-3.5 text-left transition-all sm:items-center sm:px-4"
+                      style={{
+                        background: checked ? "#7C5CFF08" : "#0A0E1A",
+                        borderColor: checked ? "#7C5CFF33" : "#151B2E",
+                      }}
                     >
-                      {checked && <span className="text-white text-xs font-bold">✓</span>}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[11px] text-accent font-semibold">{ph.num}</span>
-                        <span className="text-sm font-semibold text-white">{ph.name}</span>
-                        {i < 5 && count > 0 && (
-                          <span className="text-[10px] text-muted font-mono bg-[#0F1425] px-1.5 py-0.5 rounded">{count} tools</span>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted mt-0.5">{ph.desc}</div>
-                    </div>
-                  </button>
-                );
-              })}
-              <div className="flex justify-end gap-2.5 mt-3">
-                <Button variant="ghost" onClick={() => setStep(0)}>
-                  ← Voltar
-                </Button>
-                <Button disabled={submitting} onClick={handleCreate}>
-                  {submitting ? "Criando..." : "Criar Alvo →"}
-                </Button>
+                      <span
+                        aria-hidden="true"
+                        className="mt-0.5 flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[7px] border-2 sm:mt-0"
+                        style={{
+                          borderColor: checked ? "#7C5CFF" : "#334155",
+                          background: checked ? "#7C5CFF" : "transparent",
+                        }}
+                      >
+                        {checked && <span className="text-xs font-bold text-white">✓</span>}
+                      </span>
+
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="font-mono text-[11px] font-semibold text-accent">{ph.num}</span>
+                          <span className="text-sm font-semibold text-white">{ph.name}</span>
+                          {i < 5 && count > 0 && (
+                            <span className="rounded bg-[#0F1425] px-1.5 py-0.5 font-mono text-[10px] text-muted">
+                              {count} tools
+                            </span>
+                          )}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-muted">{ph.desc}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+
+                <div className="mt-3 flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+                  <Button variant="ghost" onClick={() => setStep(0)}>
+                    ← Voltar
+                  </Button>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? "Criando..." : "Criar Alvo →"}
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </form>
         </div>
       </div>
     </AppShell>
